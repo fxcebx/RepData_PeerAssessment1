@@ -22,9 +22,6 @@ Documentation for this Assessment can be found in README.md.
 > * **interval**: Identifier for the 5-minute interval in which
 >    measurement was taken
 
-
-
-
 The dataset is stored in a comma-separated-value (CSV) file and there
 are a total of 17,568 observations in this
 dataset.
@@ -35,11 +32,12 @@ dataset.
 require(data.table, quietly= TRUE)
 require(ggplot2, quietly= TRUE)
 require(xtable, quietly= TRUE)
+require(dplyr, quietly= TRUE)
 ```
 
 ## Loading and preprocessing the data
 
-Unzip the data file.
+Unzip the data file in current R working directory.
 
 ```{r unzip}
 unzip(zipfile="activity.zip")
@@ -52,20 +50,12 @@ convert the data frame to a data table using the data.table package
 dt <- data.table(read.csv("activity.csv"))
 ```
 
-Verify that the number of rows in the dataset is the expected value of 17,568.
-
-```{r check nrow}
-check <- nrow(dt) == 17568
-if (check == FALSE) stop("The number of rows in the dataset is not 17,568.")
-```
-
 Convert the date variable YYYY-MM-DD into a date class.
 Show the structure and the dataset (with the package data.table the dataframe is printed
 very nicely :-) ).
 
 ```{r convert dt}
-dt <- dt[, date := as.Date(date)]
-setkey(dt, date, interval)
+dt$date <- as.Date(dt$date)
 str(dt)
 dt
 ```
@@ -76,7 +66,7 @@ Aggregate the number of steps taken each day.
 Days with missing values NA will have NA when aggregated.
 
 ```{r mean of steps per day}
-dtDaily <- dt[, list(sumSteps = sum(steps)), date]
+dtDaily <- dt[, list(sumSteps = sum(steps, na.rm= FALSE)), date]
 head(dtDaily)
 ```
 
@@ -84,10 +74,9 @@ Plot a histogram of the total number of steps taken each day.
 
 ```{r hist_StepsEachDaywithNAs}
 ggplot(dtDaily, aes(x=sumSteps)) +
-  geom_histogram(alpha=1/3, binwidth=1000) +
+  geom_histogram(alpha=1/3, binwidth=2000) +
   xlab("Total Number of Steps taken Each Day") + 
-  ylab("Number of Days") +
-  scale_y_continuous(limits=c(0, 10), breaks=c(0,2,4,6,8,10) ) +
+  ylab("Frequency") +
   labs(title= "Histogram of Total Number of Steps taken Each Day (with NAs)")
 ```
 
@@ -96,27 +85,31 @@ Count also total number of days and number of days without NAs.
 
 ```{r total steps per day with NAs mean median}
 dtDailyNAs <- dtDaily[, list(NrDays = .N, NrDayswithoutNAs = sum(!is.na(sumSteps)), 
-                             Mean = mean(sumSteps, na.rm=TRUE), 
-                             Median = median(sumSteps, na.rm=TRUE))]
+                             Mean = mean(sumSteps, na.rm= TRUE),     
+                             Median = median(sumSteps, na.rm= TRUE))]
 ```
 
 Use xtable to make a nice html table. 
+
 ```{r tab1, results='asis'}
 print(xtable(dtDailyNAs), type="html", include.rownames=TRUE)
 ```
   
-The **mean** total number of steps taken per day is `r sprintf("%.2f", dtDailyNAs$Mean)`. 
-
-The **median** total number of steps taken per day is `r dtDailyNAs$Median`.
-
+>  
+> The **mean** total number of steps taken per day is `r sprintf("%.2f", dtDailyNAs$Mean)`. 
+>
+> The **median** total number of steps taken per day is `r dtDailyNAs$Median`.
+>
 
 ## What is the average daily activity pattern?
 
 Aggregate the average daily number of steps taken per 5-minute interval.
 
 ```{r dtavg}
-dtavg <- aggregate(x=list(steps=dt$steps), by=list(interval=dt$interval),
-                      FUN=mean, na.rm=TRUE)
+# dtavg <- aggregate(x=list(steps=dt$steps), by=list(interval=dt$interval),
+#                      FUN=mean, na.rm=TRUE)
+# it's the same
+dtavg <- aggregate(steps ~ interval, data= dt, mean, na.rm= TRUE)
 ```
 
 Plot a time series of the 5-minute interval and the average number of steps taken across all days.
@@ -132,9 +125,11 @@ ggplot(data=dtavg, aes(x=interval, y=steps)) +
 Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 ```{r maxnrsteps}
 maxnrsteps <- dtavg[which.max(dtavg$steps), ]
-maxnrsteps$steps <- round(maxnrsteps$steps, 2)
+maxnrsteps$steps <- round(maxnrsteps$steps)
 maxnrsteps
 ```
+The person's daily activity peaks around 8:35am. 
+
 Thats the prominent peak from the above plot.
 
 ## Imputing missing values
@@ -144,40 +139,138 @@ bias into some calculations or summaries of the data.
 
 
 Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with `NA`s)
+```{r dtDailyNAs}
+dtDailyNAs
+```
 
 ```{r how_many_NAs}
-# sum this rows with NA
 how_many_NAs <- sum(is.na(dt$steps))
+how_many_Zeros <- sum(dt$steps== 0, na.rm= TRUE)
+cbind(how_many_NAs, how_many_Zeros)
 ```
 
 In the dataset are in total  **`r how_many_NAs`** number of rows with `NA`s.
 
-Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+Only the rows with `NA`s are getting filled in.
 
-The strategy for filling in all of the missing values in the dataset is
+**The strategy for filling in all of the missing values in the dataset is**
 
-* filling all missing days with the mean for that month and then  
-* filling each missing single row with the mean for that day.  
+* filling each missing single row of a 5 minute interval with the average daily number of steps taken per 5-minute interval
+(the average daily activity pattern).
 
-```{r}
-# sum this rows with NA
-how_many_NAs <- sum(is.na(dt$steps))
+Create a new dataset that is equal to the original dataset but with the missing data filled in.
+Using the rounded mean of average steps taken per 5-minute interval from above.
+
+```{r dt steps_filled}
+# add column average daily number of steps taken per 5minute interval
+dt_filled <- cbind.data.frame(dt, dtavg[, 2])
+# fill those steps with NAs with the rounded average daily number of steps taken per 5minute interval
+dt_filled <- transform(dt_filled, steps=ifelse(is.na(steps), round(V2), steps))
+# remove additional column
+dt_filled <- select(dt_filled, -V2)
+```
+
+```{r how_many_NAs filled}
+how_many_NAs <- sum(is.na(dt_filled$steps))
+how_many_Zeros <- sum(dt_filled$steps== 0, na.rm= TRUE)
+cbind(how_many_NAs, how_many_Zeros)
+```
+
+No `NA`s anymore, but some additional Zeros from small values of the average daily activity pattern.
+
+Plot a histogram of the total number of steps taken each day with imputed missing data
+```{r filled mean of steps per day}
+dtDaily_filled <- dt_filled[, list(sumSteps = sum(steps)), date]
+head(dtDaily_filled)
 ```
 
 
-is.na(dtDaily$sumSteps)
-mean(dtDaily$sumSteps, na.rm= TRUE )
-month(dtDaily$date)
+```{r hist_StepsEachDayfilled}
+ggplot(dtDaily_filled, aes(x=sumSteps)) +
+  geom_histogram(alpha=1/3, binwidth=2000) +
+  xlab("Total Number of Steps taken Each Day") + 
+  ylab("Frequency") +
+  labs(title= "Histogram of Total Number of Steps taken Each Day (NAs filled)")
+```
 
-Spalte Monat  hinzufügen in dtDaily
-group by month --> mean
-Spalte mean_monat hinzufügen
+Calculate and report the **mean** and **median** total number of steps taken per day.
+Count also total number of days and number of days without NAs.
 
-is.na dtDaily --> ersetzen mit Wert
+```{r total steps per day filled mean median}
+dtDailyNAsfilled <- dtDaily_filled[, list(NrDays = .N,  
+                             Mean = mean(sumSteps), 
+                             Median = median(sumSteps))]    # , na.rm=TRUE
+```
 
-is.na in dt ersetzen mit dtDaily
+Use xtable to make a nice html table. 
 
+```{r tab2, results='asis'}
+print(xtable(dtDailyNAsfilled), type="html", include.rownames=TRUE)
+```
+  
+>  
+> The **mean** total number of steps taken per day is `r sprintf("%.2f", dtDailyNAsfilled$Mean)`. 
+>
+> The **median** total number of steps taken per day is `r sprintf("%.0f",dtDailyNAsfilled$Median)`.
+
+
+**Do these values differ from the estimates from the first part of the assignment? **
+
+Not really, rounding the values that are filled in for `NA`s make these minor differences. 
+
+**What is the impact of imputing missing data on the estimates of the total daily number of steps?**
+
+The shape of the histogram is the same with and without `NA`s. The frequency counts increased as expected, after filling the `NA.  However, it can be said that the chosen strategy for imputing missing values does not negatively influence the significance of the data.
 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+First, let's find the day of the week for each measurement in the dataset. In
+this part, we use the dataset with the filled-in values.
+
+Doing some Housekeeping and set Language Time Settings to English 
+(only necessary for non English LC_Time settings).
+
+```{r}
+# Sys.getlocale("LC_TIME")
+local_LC_TIME <- Sys.getlocale("LC_TIME") # save local language time settings
+Sys.setlocale("LC_TIME", "en_US.UTF-8")   # Modern Linux etc.
+```
+
+Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+```{r}
+weekday_weekend <- function(date) {
+    day <- weekdays(date)
+    if (day %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
+        return("weekday")
+    else if (day %in% c("Saturday", "Sunday"))
+        return("weekend")
+    else
+        stop("invalid date")
+}
+
+dt_filled$day <- sapply(dt_filled$date, FUN=weekday_weekend)
+```
+
+Aggregate the average daily number of steps taken per 5-minute interval.
+
+```{r dtavgf}
+#dtavgf <- aggregate(x=list(steps=dt_filled$steps), by=list(interval=dt_filled$interval, day=dt_filled$day),
+#                      FUN=mean, na.rm=TRUE)
+# it's the same
+dtavgf <- aggregate(steps ~ interval + day, data= dt_filled, mean)
+```
+
+Plot a time series of the 5-minute interval and the average number of steps taken for weekdays and weekends.
+
+```{r ts_AverageDailyActivityPatternfilled}
+ggplot(data=dtavgf, aes(x=interval, y=steps)) +
+    facet_grid(day ~ .) +
+    geom_line() +
+    xlab("Average Daily 0-2400 in 5-minute interval resolution") +
+    ylab("Number of steps taken per 5-minute interval") + 
+    labs(title= "Average Daily Activity Pattern for Weekdays and Weekends")
+```
+
+There is some difference in activity pattern. The person is more active during the weekend, also starting later and the morning start is not so pronounced compared with during the weekdays.
