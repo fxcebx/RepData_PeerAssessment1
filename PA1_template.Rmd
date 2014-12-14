@@ -1,24 +1,182 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
+author: "FxCebx"
 output: 
   html_document:
     keep_md: true
 ---
 
+This is the Peer assessment 1 for Coursera course Reproducible Research.
+Documentation for this Assessment can be found in README.md.  
+
+> ### Data
+>
+> The variables included in dataset activity.zip are:
+>
+> * **steps**: Number of steps taking in a 5-minute interval (missing
+>     values are coded as `NA`)
+> 
+> * **date**: The date on which the measurement was taken in YYYY-MM-DD
+>    format
+> 
+> * **interval**: Identifier for the 5-minute interval in which
+>    measurement was taken
+
+
+
+
+The dataset is stored in a comma-separated-value (CSV) file and there
+are a total of 17,568 observations in this
+dataset.
+
+
+### Load Packages
+```{r Load Packages}
+require(data.table, quietly= TRUE)
+require(ggplot2, quietly= TRUE)
+require(xtable, quietly= TRUE)
+```
 
 ## Loading and preprocessing the data
 
+Unzip the data file.
 
+```{r unzip}
+unzip(zipfile="activity.zip")
+```
+
+Read the CSV file and
+convert the data frame to a data table using the data.table package 
+(Variable dt is still a data frame).
+```{r loaddata}
+dt <- data.table(read.csv("activity.csv"))
+```
+
+Verify that the number of rows in the dataset is the expected value of 17,568.
+
+```{r check nrow}
+check <- nrow(dt) == 17568
+if (check == FALSE) stop("The number of rows in the dataset is not 17,568.")
+```
+
+Convert the date variable YYYY-MM-DD into a date class.
+Show the structure and the dataset (with the package data.table the dataframe is printed
+very nicely :-) ).
+
+```{r convert dt}
+dt <- dt[, date := as.Date(date)]
+setkey(dt, date, interval)
+str(dt)
+dt
+```
 
 ## What is mean total number of steps taken per day?
 
+Aggregate the number of steps taken each day.
+Days with missing values NA will have NA when aggregated.
+
+```{r mean of steps per day}
+dtDaily <- dt[, list(sumSteps = sum(steps)), date]
+head(dtDaily)
+```
+
+Plot a histogram of the total number of steps taken each day.
+
+```{r hist_StepsEachDaywithNAs}
+ggplot(dtDaily, aes(x=sumSteps)) +
+  geom_histogram(alpha=1/3, binwidth=1000) +
+  xlab("Total Number of Steps taken Each Day") + 
+  ylab("Number of Days") +
+  scale_y_continuous(limits=c(0, 10), breaks=c(0,2,4,6,8,10) ) +
+  labs(title= "Histogram of Total Number of Steps taken Each Day (with NAs)")
+```
+
+Calculate and report the **mean** and **median** total number of steps taken per day.
+Count also total number of days and number of days without NAs.
+
+```{r total steps per day with NAs mean median}
+dtDailyNAs <- dtDaily[, list(NrDays = .N, NrDayswithoutNAs = sum(!is.na(sumSteps)), 
+                             Mean = mean(sumSteps, na.rm=TRUE), 
+                             Median = median(sumSteps, na.rm=TRUE))]
+```
+
+Use xtable to make a nice html table. 
+```{r tab1, results='asis'}
+print(xtable(dtDailyNAs), type="html", include.rownames=TRUE)
+```
+  
+The **mean** total number of steps taken per day is `r sprintf("%.2f", dtDailyNAs$Mean)`. 
+
+The **median** total number of steps taken per day is `r dtDailyNAs$Median`.
 
 
 ## What is the average daily activity pattern?
 
+Aggregate the average daily number of steps taken per 5-minute interval.
 
+```{r dtavg}
+dtavg <- aggregate(x=list(steps=dt$steps), by=list(interval=dt$interval),
+                      FUN=mean, na.rm=TRUE)
+```
+
+Plot a time series of the 5-minute interval and the average number of steps taken across all days.
+
+```{r ts_AverageDailyActivityPattern}
+ggplot(data=dtavg, aes(x=interval, y=steps)) +
+    geom_line() +
+    xlab("Average Daily 0-2400 in 5-minute interval resolution") +
+    ylab("Number of steps taken per 5-minute interval") + 
+    labs(title= "Average Daily Activity Pattern Across All Days")
+```
+
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r maxnrsteps}
+maxnrsteps <- dtavg[which.max(dtavg$steps), ]
+maxnrsteps$steps <- round(maxnrsteps$steps, 2)
+maxnrsteps
+```
+Thats the prominent peak from the above plot.
 
 ## Imputing missing values
+There are a number of days/intervals where there are missing
+values (coded as `NA`). The presence of missing days may introduce
+bias into some calculations or summaries of the data.
+
+
+Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with `NA`s)
+
+```{r how_many_NAs}
+# sum this rows with NA
+how_many_NAs <- sum(is.na(dt$steps))
+```
+
+In the dataset are in total  **`r how_many_NAs`** number of rows with `NA`s.
+
+Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+The strategy for filling in all of the missing values in the dataset is
+
+* filling all missing days with the mean for that month and then  
+* filling each missing single row with the mean for that day.  
+
+```{r}
+# sum this rows with NA
+how_many_NAs <- sum(is.na(dt$steps))
+```
+
+
+is.na(dtDaily$sumSteps)
+mean(dtDaily$sumSteps, na.rm= TRUE )
+month(dtDaily$date)
+
+Spalte Monat  hinzufügen in dtDaily
+group by month --> mean
+Spalte mean_monat hinzufügen
+
+is.na dtDaily --> ersetzen mit Wert
+
+is.na in dt ersetzen mit dtDaily
+
 
 
 
