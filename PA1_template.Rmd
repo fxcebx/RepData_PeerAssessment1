@@ -214,7 +214,7 @@ print(xtable(dtDailyNAsfilled), type="html", include.rownames=TRUE)
 > The **median** total number of steps taken per day is `r sprintf("%.0f",dtDailyNAsfilled$Median)`.
 
 
-**Do these values differ from the estimates from the first part of the assignment? **
+**Do these values differ from the estimates from the first part of the assignment?**
 
 Not really, rounding the values that are filled in for `NA`s make these minor differences. 
 

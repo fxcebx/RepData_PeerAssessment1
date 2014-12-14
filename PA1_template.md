@@ -154,7 +154,7 @@ print(xtable(dtDailyNAs), type="html", include.rownames=TRUE)
 ```
 
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 14 21:40:01 2014 -->
+<!-- Sun Dec 14 22:05:37 2014 -->
 <table border=1>
 <tr> <th>  </th> <th> NrDays </th> <th> NrDayswithoutNAs </th> <th> Mean </th> <th> Median </th>  </tr>
   <tr> <td align="right"> 1 </td> <td align="right">  61 </td> <td align="right">  53 </td> <td align="right"> 10766.19 </td> <td align="right"> 10765 </td> </tr>
@@ -319,7 +319,7 @@ print(xtable(dtDailyNAsfilled), type="html", include.rownames=TRUE)
 ```
 
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 14 21:40:01 2014 -->
+<!-- Sun Dec 14 22:05:38 2014 -->
 <table border=1>
 <tr> <th>  </th> <th> NrDays </th> <th> Mean </th> <th> Median </th>  </tr>
   <tr> <td align="right"> 1 </td> <td align="right">  61 </td> <td align="right"> 10765.64 </td> <td align="right"> 10762.00 </td> </tr>
@@ -331,7 +331,7 @@ print(xtable(dtDailyNAsfilled), type="html", include.rownames=TRUE)
 > The **median** total number of steps taken per day is 10762.
 
 
-**Do these values differ from the estimates from the first part of the assignment? **
+**Do these values differ from the estimates from the first part of the assignment?**
 
 Not really, rounding the values that are filled in for `NA`s make these minor differences. 
 
