@@ -231,7 +231,7 @@ this part, we use the dataset with the filled-in values.
 Doing some Housekeeping and set Language Time Settings to English 
 (only necessary for non English LC_Time settings).
 
-```{r}
+```{r Sys.setlocale}
 # Sys.getlocale("LC_TIME")
 local_LC_TIME <- Sys.getlocale("LC_TIME") # save local language time settings
 Sys.setlocale("LC_TIME", "en_US.UTF-8")   # Modern Linux etc.
@@ -239,7 +239,7 @@ Sys.setlocale("LC_TIME", "en_US.UTF-8")   # Modern Linux etc.
 
 Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
 
-```{r}
+```{r weekday_weekend}
 weekday_weekend <- function(date) {
     day <- weekdays(date)
     if (day %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
@@ -249,7 +249,6 @@ weekday_weekend <- function(date) {
     else
         stop("invalid date")
 }
-
 dt_filled$day <- sapply(dt_filled$date, FUN=weekday_weekend)
 ```
 
